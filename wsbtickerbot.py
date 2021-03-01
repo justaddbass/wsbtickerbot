@@ -7,7 +7,9 @@ import pprint
 import operator
 import datetime
 from praw.models import MoreComments
-from iexfinance import Stock as IEXStock
+from iexfinance.stocks import Stock as IEXStock
+from dotenv import load_dotenv
+import os
 
 # to add the path for Python to search for files to use my edited version of vaderSentiment
 sys.path.insert(0, 'vaderSentiment/vaderSentiment')
@@ -47,7 +49,9 @@ def parse_section(ticker_dict, body):
       "OP", "DJIA", "PS", "AH", "TL", "DR", "JAN", "FEB", "JUL", "AUG",
       "SEP", "SEPT", "OCT", "NOV", "DEC", "FDA", "IV", "ER", "IPO", "RISE"
       "IPA", "URL", "MILF", "BUT", "SSN", "FIFA", "USD", "CPU", "AT",
-      "GG", "ELON"
+      "GG", "ELON", "STOCK", "THE", "AND", "MOASS", "THIS", "YOUR", "BUY",
+      "MOON", "APES", "MY", "TDA", "HOLD", "UTC", "FOR", "ARE", "TO", "IN",
+      "ON", "GO", "MORE", "THAT"
    ]
 
    if '$' in body:
@@ -66,7 +70,8 @@ def parse_section(ticker_dict, body):
                   ticker_dict[word] = Ticker(word)
                   ticker_dict[word].count = 1
                   ticker_dict[word].bodies.append(body)
-         except:
+         except Exception as e:
+            print(sys.__getframe(1).f_lineno, type(e))
             pass
    
    # checks for non-$ formatted comments, splits every body into list of words
@@ -80,7 +85,8 @@ def parse_section(ticker_dict, body):
             # special case for $ROPE
             if word != "ROPE":
                price = IEXStock(word).get_price()
-         except:
+         except Exception as e:
+            print(sys.__getframe(1).f_lineno, type(e))
             continue
       
          # add/adjust value of dictionary
@@ -113,7 +119,7 @@ def final_post(subreddit, text):
 
    print("\nPosting...")
    print(title)
-   subreddit.submit(title, selftext=text)
+   #subreddit.submit(title, selftext=text)
 
 def get_date():
    now = datetime.datetime.now()
@@ -123,6 +129,7 @@ def setup(sub):
    if sub == "":
       sub = "wallstreetbets"
 
+   '''
    with open("config.json") as json_data_file:
       data = json.load(json_data_file)
 
@@ -130,6 +137,13 @@ def setup(sub):
    reddit = praw.Reddit(client_id=data["login"]["client_id"], client_secret=data["login"]["client_secret"],
                         username=data["login"]["username"], password=data["login"]["password"],
                         user_agent=data["login"]["user_agent"])
+   '''
+   load_dotenv()
+   reddit = praw.Reddit(client_id=os.getenv('REDDIT_CLIENT_ID'),
+                     client_secret=os.getenv('REDDIT_CLIENT_SECRET'),
+                     user_agent='wsb scraper',
+                     username=os.getenv('REDDIT_USERNAME'),
+                     password=os.getenv('REDDIT_PASSWORD'))
    # create an instance of the subreddit
    subreddit = reddit.subreddit(sub)
    return subreddit
@@ -146,7 +160,7 @@ def run(mode, sub, num_submissions):
 
    for count, post in enumerate(new_posts):
       # if we have not already viewed this post thread
-      if not post.clicked:
+      if True: #if not post.clicked:
          # parse the post's title's text
          ticker_dict = parse_section(ticker_dict, post.title)
 
@@ -175,7 +189,7 @@ def run(mode, sub, num_submissions):
                ticker_dict = parse_section(ticker_dict, rep.body)
          
          # update the progress count
-         sys.stdout.write("\rProgress: {0} / {1} posts".format(count + 1, num_submissions))
+         sys.stdout.write("\rProgress: {0} / {1} posts\n".format(count + 1, num_submissions))
          sys.stdout.flush()
 
    text = "To help you YOLO your money away, here are all of the tickers mentioned at least 10 times in all the posts within the past 24 hours (and links to their Yahoo Finance page) along with a sentiment analysis percentage:"
@@ -242,7 +256,7 @@ class Ticker:
 
 if __name__ == "__main__":
    # USAGE: wsbtickerbot.py [ subreddit ] [ num_submissions ]
-   mode = 0
+   mode = 1
    num_submissions = 500
    sub = "wallstreetbets"
 
